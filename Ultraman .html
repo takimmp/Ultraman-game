@@ -1,0 +1,180 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ultraman Pixel Game</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    canvas {
+      display: block;
+    }
+    #timer {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: yellow;
+      font-size: 24px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div id="timer">03:00</div>
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <audio id="music" src="music.mp3" autoplay loop></audio>
+  <audio id="transformSound" src="transform.mp3"></audio>
+  <audio id="beamSound" src="beam.mp3"></audio>  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const player = {
+      x: 100,
+      y: 400,
+      vx: 0,
+      vy: 0,
+      width: 40,
+      height: 80,
+      color: "white",
+      form: "human",
+      jumping: false,
+      onGround: true
+    };
+
+    const monsters = [];
+    const keys = {};
+    const gravity = 1;
+    const floorY = 480;
+
+    const ultramanColor = "blue";
+    const humanColor = "white";
+    const monsterColor = "black";
+
+    let startTime = Date.now();
+    let timerFlashing = false;
+
+    function drawPlayer() {
+      ctx.fillStyle = player.color;
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+      ctx.fillStyle = "yellow";
+      ctx.fillRect(player.x + 10, player.y + 10, 8, 8);
+    }
+
+    function drawMonster(monster) {
+      ctx.fillStyle = monsterColor;
+      ctx.fillRect(monster.x, monster.y, 60, 100);
+      ctx.fillStyle = "red";
+      ctx.fillRect(monster.x + 10, monster.y + 20, 10, 10);
+      ctx.fillStyle = "white";
+      ctx.fillRect(monster.x + 15, monster.y + 70, 30, 5);
+    }
+
+    function drawBeam() {
+      if (player.form === "ultraman") {
+        ctx.strokeStyle = "cyan";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(player.x + player.width, player.y + player.height / 2);
+        ctx.lineTo(player.x + 200, player.y + player.height / 2);
+        ctx.stroke();
+      }
+    }
+
+    function spawnMonster() {
+      monsters.push({ x: 800, y: 400, vx: -2, vy: 0, jumping: false, onGround: true });
+    }
+
+    function updateTimer() {
+      const now = Date.now();
+      const elapsed = Math.floor((now - startTime) / 1000);
+      const remaining = Math.max(180 - elapsed, 0);
+      const minutes = Math.floor(remaining / 60);
+      const seconds = remaining % 60;
+
+      const timer = document.getElementById("timer");
+      timer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+      if (remaining === 0) {
+        timerFlashing = true;
+      }
+
+      if (timerFlashing) {
+        timer.style.visibility = (Math.floor(now / 500) % 2) ? 'hidden' : 'visible';
+      }
+    }
+
+    function applyPhysics(entity) {
+      if (!entity.onGround) {
+        entity.vy += gravity;
+        entity.y += entity.vy;
+
+        if (entity.y >= floorY) {
+          entity.y = floorY;
+          entity.vy = 0;
+          entity.jumping = false;
+          entity.onGround = true;
+        }
+      }
+    }
+
+    function updateGame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Player movement
+      player.vx = 0;
+      if (keys["ArrowRight"]) player.vx = 5;
+      if (keys["ArrowLeft"]) player.vx = -5;
+
+      player.x += player.vx;
+      applyPhysics(player);
+      drawPlayer();
+
+      monsters.forEach(monster => {
+        monster.x += monster.vx;
+        applyPhysics(monster);
+        drawMonster(monster);
+      });
+
+      updateTimer();
+    }
+
+    function gameLoop() {
+      updateGame();
+      requestAnimationFrame(gameLoop);
+    }
+
+    setInterval(spawnMonster, 300000);
+
+    document.addEventListener("keydown", (e) => {
+      keys[e.key] = true;
+      if (e.key === " ") {
+        if (player.form === "human") {
+          player.form = "ultraman";
+          player.color = ultramanColor;
+          document.getElementById("transformSound").play();
+        } else {
+          player.form = "human";
+          player.color = humanColor;
+        }
+      }
+      if ((e.key === "ArrowUp" || e.key === "w") && player.onGround) {
+        player.vy = -15;
+        player.onGround = false;
+      }
+      if (e.key === "z" && player.form === "ultraman") {
+        drawBeam();
+        document.getElementById("beamSound").play();
+      }
+    });
+
+    document.addEventListener("keyup", (e) => {
+      keys[e.key] = false;
+    });
+
+    gameLoop();
+  </script></body>
+</html>
